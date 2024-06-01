@@ -1,10 +1,9 @@
-const express = require('express');
+const express = require('../server');
 const mw = require('../middlewares/userMiddlewares');
 const userSchema = require('../schemas/userSchemas');
 const userController = require('../controllers/userController');
 
 const router = express.Router();
-const PORT = 3000;
 
 router.use(express.json());
 
