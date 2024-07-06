@@ -1,24 +1,42 @@
-const express = require('../server');
-const mw = require('../middlewares/userMiddlewares');
-const userSchema = require('../schemas/userSchemas');
-const userController = require('../controllers/userController');
+import express from 'express';
+import { validate } from '../middlewares/userMiddlewares';
+import { userSchema } from '../schemas/userSchemas';
+import * as userController from '../controllers/userController';
 
-const router = express.Router();
+const userRouter = express.Router();
 
-router.use(express.json());
+userRouter.use(express.json());
 
-router.get('/users', userController.listUsers);
+userRouter.get('/users', (req, res) => {
+  const users = userController.listUsers();
+  res.send(users);
+});
 
-router.post('/users', mw.validate(userSchema), userController.createUser);
+userRouter.post('/users', validate(userSchema), (req, res) => {
+  const { name, age } = req.body;
+  res.send(userController.createUser({ name, age }))
+});
 
-router.get('/users/:id(\\d+)', userController.getUser);
+userRouter.get('/users/:id(\\d+)', userController.getUser);
 
-router.put(
-  '/users/:id(\\d+)',
-  mw.validate(userSchema),
-  userController.updateUser
-);
+userRouter.put('/users/:id(\\d+)', validate(userSchema), (req, res) => {
+  const { id } = req.params;
+  const { name, age } = req.body;
+  try {
+    userController.updateUser(+id, { name, age });
+  } catch (err) {
+    res.status(404).send({ message: 'User not found.' });
+  }
+});
 
-router.delete('/users/:id(\\d+)', userController.deleteUser);
+userRouter.delete('/users/:id(\\d+)', async (req, res) => {
+  const { id } = req.params;
+  const result = await userController.deleteUser(+id);
+  if (!result) {
+    res.status(404).send({ message: 'User not found.' });
+  } else {
+    res.status(204);
+  }
+});
 
-module.exports = router;
+export default userRouter;

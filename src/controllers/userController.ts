@@ -1,98 +1,46 @@
-const db = require('../db/database');
+import { User } from '../db/entity/User';
+import { AppDataSource } from '../db/data-source';
 
-exports.createUser = (req, res) => {
-  const { name, age } = req.body;
-  const sql = 'INSERT INTO users (name, age) VALUES (?, ?)';
-  const params = [name, age];
+const userRepository = AppDataSource.getRepository(User);
 
-  new Promise((resolve, reject) => {
-    db.run(sql, params, function (err) {
-      if (err) {
-        return reject(err);
-      }
-      resolve({ id: this.lastID });
-    });
-  })
-    .then((result) => {
-      res.status(201).send({ id: result.id, name, age });
-    })
-    .catch((err) => {
-      res.status(400).send({ error: err.message });
-    });
+type userType = {
+  name: string;
+  age: number;
 };
 
-exports.listUsers = async (req, res) => {
-  const sql = 'SELECT * FROM users';
+const createUser = async (user: userType) => {
+  const newUser = userRepository.create(user);
+  await userRepository.save(newUser);
+  return newUser;
+};
 
+const listUsers = async () => {
   try {
-    const rows = await db.all(sql);
-    res.send(rows);
+    const users = await userRepository.find();
+    return users;
   } catch (err) {
-    res.status(400).send({ error: err.message });
+    return [];
   }
 };
 
-exports.getUser = async (req, res) => {
-  const { id } = req.params;
-  const sql = 'SELECT * FROM users WHERE id = ?';
+const getUser = async (id: number) => {
+  const user = await userRepository.findOneBy({ id });
+  return user;
+};
 
-  try {
-    const row = await db.get(sql, [id]);
-    if (!row) {
-      return res.status(404).send({ error: 'User not found' });
-    }
-    res.send(row);
-  } catch (err) {
-    res.status(400).send({ error: err.message });
+const updateUser = async (id: number, updatedData: userType) => {
+  const user = await userRepository.findOneBy({ id });
+  if (!user) {
+    throw new Error('User not found.');
   }
+  userRepository.merge(user, updatedData);
+  await userRepository.save(user);
+  return user;
 };
 
-exports.updateUser = async (req, res) => {
-  const { id } = req.params;
-  const { name, age } = req.body;
-  const sql = 'UPDATE users SET name = ?, age = ? WHERE id = ?';
-  const params = [name, age, id];
-
-  new Promise((resolve, reject) => {
-    db.run(sql, params, function (err) {
-      if (err) {
-        return reject(err);
-      }
-      resolve({ id: this.lastID, changes: this.changes });
-    });
-  })
-    .then((result) => {
-      if (result.changes === 0) {
-        res.status(404).send({ error: 'User not found' });
-      } else {
-        res.send({ id: result.id, name, age });
-      }
-    })
-    .catch((err) => {
-      res.status(400).send({ error: err.message });
-    });
+const deleteUser = async (id: number) => {
+  const result = await userRepository.delete(id);
+  return (result.affected ?? 0) > 0;
 };
 
-exports.deleteUser = async (req, res) => {
-  const { id } = req.params;
-  const sql = 'DELETE FROM users WHERE id = ?';
-
-  new Promise((resolve, reject) => {
-    db.run(sql, [id], function (err) {
-      if (err) {
-        return reject(err);
-      }
-      resolve(this.changes);
-    });
-  })
-    .then((result) => {
-      if (result) {
-        res.status(204).send();
-      } else {
-        res.status(404).send({ error: 'User not found' });
-      }
-    })
-    .catch((err) => {
-      res.status(400).send({ error: err.message });
-    });
-};
+export { createUser, listUsers, getUser, updateUser, deleteUser };
